@@ -68,10 +68,6 @@ export default function LoginScreen() {
         </div>
         
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
-          <span className="hover:text-slate-900 cursor-pointer transition-colors">Platform</span>
-          <span className="hover:text-slate-900 cursor-pointer transition-colors">Solutions</span>
-          <span className="hover:text-slate-900 cursor-pointer transition-colors">Resources</span>
-          <span className="hover:text-slate-900 cursor-pointer transition-colors">Pricing</span>
         </div>
         
         <div className="hidden md:block w-10" /> {/* Spacer for centering */}
