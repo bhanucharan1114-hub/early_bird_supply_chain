@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
-function RiskDashboard({ company, product, riskData, signals, summary, incident, followUp, onReset, onBack, onSaveAnalysis, onShowSavedAnalyses, isAuthenticated }) {
+function RiskDashboard({ company, product, riskData, signals, summary, tabAnalyses, incident, followUp, onReset, onBack, onSaveAnalysis, onShowSavedAnalyses, isAuthenticated }) {
+  const { logout } = useAuth();
   const { score, riskLevel, recommendations, anomalies, trend } = riskData;
   const [activeTab, setActiveTab] = useState("suppliers");
 
@@ -13,12 +15,15 @@ function RiskDashboard({ company, product, riskData, signals, summary, incident,
           <button onClick={onBack} className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-2">
             <span>←</span> Back to products
           </button>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
              {isAuthenticated && (
                 <button onClick={onShowSavedAnalyses} className="text-sm font-semibold text-slate-600 hover:text-indigo-600">
                   Saved Analyses
                 </button>
              )}
+            <button onClick={logout} className="text-sm font-semibold text-slate-600 hover:text-rose-600 transition-colors ml-2">
+              Logout
+            </button>
           </div>
         </div>
       </nav>
@@ -122,9 +127,9 @@ function RiskDashboard({ company, product, riskData, signals, summary, incident,
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {activeTab === "suppliers" && <SuppliersTab company={company} signals={signals} />}
-                {activeTab === "routes" && <RoutesTab company={company} />}
-                {activeTab === "materials" && <MaterialsTab product={product} />}
+                {activeTab === "suppliers" && <SuppliersTab company={company} signals={signals} analysis={tabAnalyses?.suppliers_analysis} />}
+                {activeTab === "routes" && <RoutesTab company={company} analysis={tabAnalyses?.routes_analysis} />}
+                {activeTab === "materials" && <MaterialsTab product={product} analysis={tabAnalyses?.materials_analysis} />}
                 {activeTab === "commodities" && <CommoditiesTab signals={signals} />}
               </motion.div>
             </AnimatePresence>
@@ -236,7 +241,7 @@ function AnomalyAlert({ anomalies }) {
   );
 }
 
-function SuppliersTab({ company, signals }) {
+function SuppliersTab({ company, signals, analysis }) {
   const geoRiskMap = {};
   if (signals?.geopoliticalRisk && Array.isArray(signals.geopoliticalRisk)) {
     signals.geopoliticalRisk.forEach(item => { geoRiskMap[item.country] = item; });
@@ -249,6 +254,7 @@ function SuppliersTab({ company, signals }) {
 
   return (
     <div className="space-y-4">
+      <AIInsightBox text={analysis} title="Supplier Concentration Risk" />
       {company.suppliers.map((supplier, i) => {
         const geoData = geoRiskMap[supplier.country];
         const weatherData = weatherRiskMap[supplier.country];
@@ -280,9 +286,11 @@ function SuppliersTab({ company, signals }) {
   );
 }
 
-function RoutesTab({ company }) {
+function RoutesTab({ company, analysis }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-4">
+      <AIInsightBox text={analysis} title="Transit & Chokepoint Risk" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {company.routes && company.routes.length > 0 ? company.routes.map((route, i) => (
         <div key={i} className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
           <div className="text-sm font-bold text-slate-900 mb-1">{route.name}</div>
@@ -294,17 +302,21 @@ function RoutesTab({ company }) {
         </div>
       )) : <div className="text-sm text-slate-500 p-4">No specific routes defined for this product.</div>}
     </div>
+    </div>
   );
 }
 
-function MaterialsTab({ product }) {
+function MaterialsTab({ product, analysis }) {
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="space-y-4">
+      <AIInsightBox text={analysis} title="Commodity & Shortage Context" />
+      <div className="flex flex-wrap gap-3">
       {product.criticalMaterials.map((material, i) => (
         <div key={i} className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 shadow-sm text-sm font-bold text-slate-700">
           {material}
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -369,6 +381,32 @@ function RecommendationsPanel({ recommendations }) {
             </motion.div>
           )
         })}
+      </div>
+    </div>
+  );
+}
+
+function AIInsightBox({ text, title }) {
+  if (!text) {
+    return (
+      <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100 flex items-start gap-3 animate-pulse mb-6">
+        <div className="w-5 h-5 mt-0.5 rounded-full bg-indigo-200" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-indigo-100 rounded w-1/4" />
+          <div className="h-3 bg-indigo-50 rounded w-3/4" />
+          <div className="h-3 bg-indigo-50 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-indigo-50 flex items-start gap-3 to-white rounded-2xl p-5 border border-indigo-100 shadow-sm mb-6 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+      <span className="text-xl leading-none">✨</span>
+      <div>
+        <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">AI Context: {title}</h4>
+        <p className="text-sm font-medium text-slate-700 leading-relaxed">{text}</p>
       </div>
     </div>
   );
