@@ -1,4 +1,5 @@
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GROQ_ANALYTICS_KEY = import.meta.env.VITE_GROQ_ANALYTICS_KEY || GROQ_API_KEY;
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // ============================================================================
@@ -26,16 +27,22 @@ export async function generateExecutiveSummary(riskScore, signals, company, prod
     .map((c) => `  • ${c.material}: risk ${c.riskScore}/100, price ${c.priceChange != null ? (c.priceChange > 0 ? "+" : "") + c.priceChange + "%" : "N/A"}`)
     .join("\n");
 
-  const prompt = `You are a senior supply chain risk analyst. Write a concise 2-3 sentence executive briefing for a C-suite audience.
+  const prompt = `<ROLE>
+You are a senior supply chain risk analyst and executive advisor.
+</ROLE>
 
-Company: ${company.name} | Product: ${product.name}
+<CONTEXT>
+You are preparing an immediate intelligence briefing for the C-suite of ${company.name} regarding the production of their product: ${product.name}.
+</CONTEXT>
+
+<DATA_INPUTS>
 Overall Risk Score: ${riskScore.finalScore}/100 (${_levelName(riskScore.finalScore)})
 
-Risk Breakdown:
-  • Geopolitical: ${riskScore.components.geopoliticalRisk}/100
-  • Weather: ${riskScore.components.weatherRisk}/100
-  • Commodity: ${riskScore.components.commodityStress}/100
-  • Supply Dependency: ${riskScore.components.dependencyRisk}/100
+Risk Component Breakdown:
+- Geopolitical Risk: ${riskScore.components.geopoliticalRisk}/100
+- Weather Risk: ${riskScore.components.weatherRisk}/100
+- Commodity Stress: ${riskScore.components.commodityStress}/100
+- Supply Dependency: ${riskScore.components.dependencyRisk}/100
 
 Key Geopolitical Signals:
 ${geoLines || "  • No major signals detected"}
@@ -45,8 +52,25 @@ ${weatherLines || "  • No adverse weather detected"}
 
 Key Commodity Signals:
 ${commodityLines || "  • No major commodity stress detected"}
+</DATA_INPUTS>
 
-Instructions: Identify the top 1-2 risk drivers by name (specific countries or materials). State the business impact. Be direct and specific — no generic statements. Do not use bullet points in your response.`;
+<TASK>
+Write a highly concise, 2-3 sentence executive summary of the current supply chain risk. 
+</TASK>
+
+<CONSTRAINTS>
+1. Identify the top 1-2 risk drivers by name (e.g., specific countries or materials).
+2. Explicitly state the potential business impact.
+3. Be direct, authoritative, and highly specific. No generic or fluffy statements.
+4. Do NOT use bullet points or lists in your summary text.
+</CONSTRAINTS>
+
+<OUTPUT_FORMAT>
+You must respond with ONLY a valid JSON object matching this strict schema:
+{
+  "summary": "<string, 2-3 sentences max>"
+}
+</OUTPUT_FORMAT>`;
 
   try {
     const response = await fetch(GROQ_API_URL, {
@@ -59,13 +83,16 @@ Instructions: Identify the top 1-2 risk drivers by name (specific countries or m
         model: "llama-3.3-70b-versatile",
         max_tokens: 220,
         temperature: 0.3,
+        response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
     if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
     const data = await response.json();
-    return data.choices[0].message.content.trim();
+    const content = data.choices[0].message.content.trim();
+    const parsed = JSON.parse(content);
+    return parsed.summary || content;
   } catch (error) {
     console.warn("Groq summary failed:", error.message);
     return _fallbackSummary(riskScore, signals);
@@ -77,6 +104,107 @@ function _levelName(score) {
   if (score >= 61) return "High";
   if (score >= 31) return "Medium";
   return "Low";
+}
+
+// ============================================================================
+// TAB-SPECIFIC AI ANALYTICS
+// ============================================================================
+
+export async function generateTabAnalyses(signals, company, product) {
+  // Format data safely
+  const suppliers = company.suppliers || [];
+  const materials = product.criticalMaterials || [];
+  const routes = company.routes || [];
+
+  const geoLines = (signals.geopoliticalRisk || [])
+    .filter((g) => g.riskScore !== null)
+    .map((g) => `  • ${g.country}: risk ${g.riskScore}/100`)
+    .join("\n");
+
+  const weatherLines = (signals.weatherRisk || [])
+    .filter((w) => w.riskScore !== null)
+    .map((w) => `  • ${w.country}: risk ${w.riskScore}/100, ${w.condition}, ${w.temperature}°C`)
+    .join("\n");
+
+  const commodityLines = (signals.commodityStress || [])
+    .filter((c) => c.riskScore !== null)
+    .map((c) => `  • ${c.material}: risk ${c.riskScore}/100`)
+    .join("\n");
+
+  const prompt = `<ROLE>
+You are a senior supply chain risk analyst and executive advisor.
+</ROLE>
+
+<CONTEXT>
+You are analyzing the specific operational logistics of ${company.name} for the production of ${product.name}.
+</CONTEXT>
+
+<DATA_INPUTS>
+Suppliers & Dependencies:
+${suppliers.map(s => `  • ${s.country} (${Math.round(s.weight * 100)}% dependency)`).join("\n") || "None"}
+
+Logistics Routes:
+${routes.map(r => `  • ${r.origin} to ${r.destination}`).join("\n") || "None"}
+
+Critical Materials:
+${materials.join(", ") || "None"}
+
+Current Risk Signals in Supplier Regions:
+Geopolitical:
+${geoLines || "None"}
+Weather:
+${weatherLines || "None"}
+Commodity:
+${commodityLines || "None"}
+</DATA_INPUTS>
+
+<TASK>
+Provide highly specific, contextual risk analysis for three distinct areas of the supply chain: Suppliers, Routes, and Materials.
+</TASK>
+
+<CONSTRAINTS>
+1. Each analysis must be exactly 2 to 3 sentences long.
+2. Be direct, authoritative, and specific to the data provided. Do not invent fake names or regions.
+3. If no risks are detected for an area, state that operations are stable but note the inherent concentration dependencies.
+</CONSTRAINTS>
+
+<OUTPUT_FORMAT>
+You must respond with ONLY a valid JSON object matching this strict schema:
+{
+  "suppliers_analysis": "<string>",
+  "routes_analysis": "<string>",
+  "materials_analysis": "<string>"
+}
+</OUTPUT_FORMAT>`;
+
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_ANALYTICS_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 400,
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
+    const data = await response.json();
+    const content = data.choices[0].message.content.trim();
+    return JSON.parse(content);
+  } catch (error) {
+    console.warn("Groq tab analyses failed:", error.message);
+    return {
+      suppliers_analysis: "Unable to generate AI analysis. Review the supplier breakdown and signal data below.",
+      routes_analysis: "Unable to generate AI analysis. Review the transit routes below.",
+      materials_analysis: "Unable to generate AI analysis. Review the commodity data below.",
+    };
+  }
 }
 
 /**
@@ -135,7 +263,7 @@ export async function analyzeIncident(signals, _company) {
   const weatherMax = weatherScores.length ? Math.max(...weatherScores) : 0;
   const commodityMax = commodityScores.length ? Math.max(...commodityScores) : 0;
 
-  let topIssue = "All supply chain signals are within normal parameters";
+  let topIssue = null;
 
   if (geoMax >= weatherMax && geoMax >= commodityMax && geoMax > 45) {
     const geo = signals.geopoliticalRisk.find((r) => r.riskScore === geoMax);
@@ -154,6 +282,8 @@ export async function analyzeIncident(signals, _company) {
         : "";
     topIssue = `${commodity?.material ?? "Key material"} price pressure${changeStr} — review procurement contracts`;
   }
+
+  if (!topIssue) return null;
 
   return {
     topIssue,
