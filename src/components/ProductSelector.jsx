@@ -1,7 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function ProductSelector({ company, onSelect, onBack }) {
+  const { logout } = useAuth();
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
@@ -17,9 +19,12 @@ function ProductSelector({ company, onSelect, onBack }) {
             <span className="font-bold text-lg tracking-tight text-slate-800">EarlyBird</span>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
              <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-indigo-600 flex items-center gap-2 transition-colors">
               <span>←</span> Change Workspace
+            </button>
+            <button onClick={logout} className="text-sm font-semibold text-slate-600 hover:text-rose-600 transition-colors ml-2">
+              Logout
             </button>
           </div>
         </div>
