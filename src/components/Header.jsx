@@ -5,86 +5,43 @@ function Header({ onShowSavedAnalyses }) {
   const { user, isAuthenticated, logout, loginWithGoogle } = useAuth();
 
   return (
-    <div style={{ 
-      display: "flex", 
-      justifyContent: "space-between", 
-      alignItems: "center", 
-      padding: "1.5rem 2.5rem",
-      borderBottom: "1px solid var(--border-secondary)",
-      marginBottom: "2rem"
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "24px" }}>🚨</span>
-        <h1 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>
+    <div className="flex justify-between items-center px-6 md:px-10 py-5 border-b border-white/10 mb-8 bg-slate-950/40 backdrop-blur-xl sticky top-0 z-50">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl drop-shadow-md">🚨</span>
+        <h1 className="text-lg font-bold text-white tracking-wide">
           Supply Chain Early Bird
         </h1>
       </div>
       
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div className="flex items-center gap-4">
         {isAuthenticated && (
           <button 
             onClick={onShowSavedAnalyses}
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-secondary)",
-              borderRadius: "var(--radius-md)",
-              padding: "8px 16px",
-              fontSize: "12px",
-              color: "var(--text-secondary)"
-            }}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-500/50 text-white text-sm font-bold backdrop-blur-md transition-all shadow-lg shadow-blue-500/20"
           >
             Saved Analyses
           </button>
         )}
         
         {isAuthenticated ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "8px",
-              fontSize: "13px",
-              color: "var(--text-secondary)"
-            }}>
+          <div className="flex items-center gap-4 pl-4 border-l border-white/10">
+            <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
               {user?.photoURL ? (
                 <img 
                   src={user.photoURL} 
                   alt="" 
-                  style={{ 
-                    width: "28px", 
-                    height: "28px", 
-                    borderRadius: "50%",
-                    objectFit: "cover"
-                  }}
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-white/10 shadow-md"
                 />
               ) : (
-                <div style={{ 
-                  width: "28px", 
-                  height: "28px", 
-                  borderRadius: "50%", 
-                  background: "var(--accent)", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  color: "#fff", 
-                  fontSize: "12px", 
-                  fontWeight: 600 
-                }}>
+                <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold ring-2 ring-indigo-500/20">
                   {user?.displayName?.[0] || "?"}
                 </div>
               )}
-              <span>{user.displayName?.split(" ")[0]}</span>
+              <span className="hidden sm:inline-block">{user.displayName?.split(" ")[0]}</span>
             </div>
             <button 
               onClick={logout}
-              style={{
-                background: "var(--bg-danger)",
-                border: "1px solid var(--border-danger)",
-                borderRadius: "var(--radius-md)",
-                padding: "8px 16px",
-                fontSize: "12px",
-                color: "var(--text-danger)"
-              }}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 border border-rose-500/50 text-white text-sm font-bold backdrop-blur-md transition-all shadow-lg shadow-rose-500/20"
             >
               Logout
             </button>
@@ -92,18 +49,7 @@ function Header({ onShowSavedAnalyses }) {
         ) : (
           <button 
             onClick={loginWithGoogle}
-            style={{
-              background: "var(--accent)",
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              padding: "8px 16px",
-              fontSize: "12px",
-              color: "#fff",
-              fontWeight: 500,
-              display: "flex",
-              alignItems: "center",
-              gap: "6px"
-            }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/50 text-white text-sm font-bold backdrop-blur-md transition-all shadow-lg shadow-indigo-600/30"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
