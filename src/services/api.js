@@ -59,12 +59,17 @@ export async function deleteAnalysis(userId, analysisId) {
 /**
  * Fetch live risk signals from Python backend (weather, geopolitical, commodity)
  */
-export async function fetchSignalsFromBackend(suppliers, materials) {
+export async function fetchSignalsFromBackend(suppliers, materials, companyName = null, routes = []) {
   try {
     const response = await fetch(`${API_BASE_URL}/signals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ suppliers, materials }),
+      body: JSON.stringify({ 
+        suppliers, 
+        materials,
+        company_name: companyName,
+        routes: routes
+      }),
     });
     if (!response.ok) throw new Error(`Backend signals error: ${response.status}`);
     return await response.json();
