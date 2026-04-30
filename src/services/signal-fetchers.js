@@ -20,7 +20,10 @@ export async function fetchAllSignals(company, product) {
 
   // --- Try Python backend first (server-side APIs, no CORS issues) ---
   try {
-    const backendData = await fetchSignalsFromBackend(suppliers, materials);
+    const companyName = company.name;
+    const routes = (company.routes || []).map(r => `${r.origin} to ${r.destination}`);
+    
+    const backendData = await fetchSignalsFromBackend(suppliers, materials, companyName, routes);
     if (backendData) {
       // Normalise backend field names so risk-engine.js gets what it expects.
       // Backend: { geopoliticalRisk, weatherRisk, commodityStress }
