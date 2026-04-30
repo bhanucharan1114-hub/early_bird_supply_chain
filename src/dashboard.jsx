@@ -8,6 +8,7 @@ import {
 import { fetchAllSignals } from "./services/signal-fetchers.js";
 import {
   generateExecutiveSummary,
+  generateTabAnalyses,
   analyzeIncident,
   suggestFollowUpQuestions,
   calculateRiskTrend,
@@ -43,6 +44,7 @@ export default function SupplyChainDashboard() {
   const [riskData, setRiskData] = useState(null);
   const [signals, setSignals] = useState(null);
   const [summary, setSummary] = useState("");
+  const [tabAnalyses, setTabAnalyses] = useState(null);
   const [incident, setIncident] = useState(null);
   const [followUp, setFollowUp] = useState([]);
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -110,6 +112,7 @@ export default function SupplyChainDashboard() {
     setRiskData(null);
     setSignals(null);
     setSummary("");
+    setTabAnalyses(null);
     setIncident(null);
     setFollowUp([]);
     setShowCustomForm(false);
@@ -160,7 +163,13 @@ export default function SupplyChainDashboard() {
       const allSignals = await fetchAllSignals(comp, product);
       setSignals(allSignals);
 
+      // 1. Calculate local/instant metrics first to prevent UI shifting
       const risk = calculateRiskScore(allSignals, comp);
+      const inc = await analyzeIncident(allSignals, comp);
+      const fup = suggestFollowUpQuestions(risk, comp, product);
+      
+      setIncident(inc);
+      setFollowUp(fup);
 
       // Build historical scores from saved analyses for the same product
       const historicalScores = savedAnalyses
@@ -192,19 +201,20 @@ export default function SupplyChainDashboard() {
         risk_level: getRiskLevel(risk.finalScore).level,
       });
 
-      // AI narrative (non-blocking)
-      try {
-        const [sum, inc, fup] = await Promise.all([
-          generateExecutiveSummary(risk, allSignals, comp, product),
-          analyzeIncident(allSignals, comp),
-          Promise.resolve(suggestFollowUpQuestions(risk, comp, product)),
-        ]);
-        setSummary(sum);
-        setIncident(inc);
-        setFollowUp(fup);
-      } catch {
-        setSummary("AI summary unavailable — review signals below.");
-      }
+      // 2. AI narrative (non-blocking, takes 2-4 seconds)
+      setSummary("");
+      setTabAnalyses(null);
+      Promise.all([
+        generateExecutiveSummary(risk, allSignals, comp, product),
+        generateTabAnalyses(allSignals, comp, product),
+      ])
+        .then(([sum, tabs]) => {
+          setSummary(sum);
+          setTabAnalyses(tabs);
+        })
+        .catch(() => {
+          setSummary("AI summary unavailable — review signals below.");
+        });
     } catch (err) {
       console.error("Signal fetch failed:", err);
       trackError("signal_fetch_failed", err.message);
@@ -233,6 +243,7 @@ export default function SupplyChainDashboard() {
       components: riskData.score.components,
       signals,
       summary,
+      tabAnalyses,
       incident,
       followUp,
       recommendations: riskData.recommendations,
@@ -284,6 +295,7 @@ export default function SupplyChainDashboard() {
     setSelectedCompany(null);
     setShowCustomForm(false);
     setShowSavedAnalyses(false);
+    setTabAnalyses(null);
     sessionStorage.setItem("currentView", "companySelector");
     sessionStorage.removeItem("lastSelectedCompany");
     sessionStorage.removeItem("lastSelectedProduct");
@@ -295,6 +307,7 @@ export default function SupplyChainDashboard() {
     setRiskData(null);
     setSignals(null);
     setSummary("");
+    setTabAnalyses(null);
     setIncident(null);
     setFollowUp([]);
     sessionStorage.setItem("currentView", "productSelector");
@@ -362,6 +375,7 @@ export default function SupplyChainDashboard() {
           });
           setSignals(analysis.signals || null);
           setSummary(analysis.summary || "");
+          setTabAnalyses(analysis.tabAnalyses || null);
           setIncident(analysis.incident || null);
           setFollowUp(analysis.followUp || []);
           setShowSavedAnalyses(false);
@@ -412,6 +426,7 @@ export default function SupplyChainDashboard() {
       riskData={riskData}
       signals={signals}
       summary={summary}
+      tabAnalyses={tabAnalyses}
       incident={incident}
       followUp={followUp}
       onReset={handleReset}
