@@ -49,6 +49,8 @@ app.add_middleware(
 class SignalRequest(BaseModel):
     suppliers: list[str]
     materials: list[str]
+    company_name: str | None = None
+    routes: list[str] | None = None
 
 
 # ============================================================================
@@ -83,7 +85,7 @@ def fetch_all_signals(req: SignalRequest):
         f_geo       = ex.submit(get_geopolitical_risk, req.suppliers)
         f_weather   = ex.submit(get_weather_risk, req.suppliers)
         f_commodity = ex.submit(get_commodity_stress, req.materials)
-        f_ports     = ex.submit(get_port_disruption_signals, req.suppliers)
+        f_ports     = ex.submit(get_port_disruption_signals, req.suppliers, req.company_name, req.routes)
         f_materials = ex.submit(get_material_shortage_signals, req.materials)
 
     geo_data       = _safe(f_geo, [])
