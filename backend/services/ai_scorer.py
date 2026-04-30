@@ -28,20 +28,37 @@ def ai_score_headlines(country: str, headlines: list[str]) -> int:
 
     headlines_text = "\n".join(f"- {h}" for h in headlines)
 
-    prompt = f"""You are a supply chain risk analyst. Rate these news headlines for supply chain disruption risk for a company sourcing materials from {country}.
+    prompt = f"""<ROLE>
+You are an elite, highly-paid Supply Chain Risk Intelligence Analyst for a Fortune 500 company.
+</ROLE>
 
-Headlines:
+<CONTEXT>
+We are monitoring real-time global news to assess logistics and production risks for materials sourced from {country}. 
+</CONTEXT>
+
+<TASK>
+Evaluate the provided news headlines and determine the aggregate supply chain disruption risk. Assign a unified risk score from 0 to 100 based on the severity of the threat.
+</TASK>
+
+<SCORING_GUIDE>
+- 0-15  : Benign / No supply chain relevance
+- 16-35 : Minor concern (Worth monitoring, but no immediate impact)
+- 36-55 : Moderate risk (Could cause localized delays)
+- 56-75 : Significant risk (Disruption highly likely, alternate sourcing recommended)
+- 76-100: Severe crisis (Immediate and catastrophic disruption, action required immediately)
+</SCORING_GUIDE>
+
+<HEADLINES>
 {headlines_text}
+</HEADLINES>
 
-Reply with ONLY a JSON object, nothing else:
-{{"risk_score": <integer 0-100>, "reason": "<max 8 words>"}}
-
-Scoring guide:
-0-15   = No supply chain relevance
-16-35  = Minor concern, worth monitoring  
-36-55  = Moderate — could cause delays
-56-75  = Significant — disruption likely
-76-100 = Severe — immediate action required"""
+<OUTPUT_FORMAT>
+You must respond with ONLY a valid JSON object matching this strict schema:
+{{
+  "risk_score": <integer between 0 and 100>,
+  "reason": "<string, maximum 8 words explaining the primary driver of the score>"
+}}
+</OUTPUT_FORMAT>"""
 
     try:
         resp = requests.post(
@@ -54,6 +71,7 @@ Scoring guide:
                 "model": "llama-3.1-8b-instant",
                 "max_tokens": 80,
                 "temperature": 0.1,
+                "response_format": {"type": "json_object"},
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=10,
@@ -83,13 +101,28 @@ def ai_score_material_context(material: str, headlines: list[str]) -> int:
 
     headlines_text = "\n".join(f"- {h}" for h in headlines)
 
-    prompt = f"""Rate these headlines for {material} supply chain / commodity risk.
+    prompt = f"""<ROLE>
+You are an expert Commodity Supply Chain Risk Analyst.
+</ROLE>
 
-Headlines:
+<CONTEXT>
+We are monitoring live news for shortages, price shocks, and supply chain disruptions affecting {material}.
+</CONTEXT>
+
+<TASK>
+Analyze the following headlines and determine the current global supply chain risk level for this specific material.
+</TASK>
+
+<HEADLINES>
 {headlines_text}
+</HEADLINES>
 
-Reply ONLY with JSON: {{"risk_score": <0-100>}}
-(0=no risk, 100=critical shortage/crisis)"""
+<OUTPUT_FORMAT>
+You must respond with ONLY a valid JSON object matching this strict schema:
+{{
+  "risk_score": <integer between 0 and 100, where 0 is no risk and 100 is a critical global crisis/shortage>
+}}
+</OUTPUT_FORMAT>"""
 
     try:
         resp = requests.post(
@@ -102,6 +135,7 @@ Reply ONLY with JSON: {{"risk_score": <0-100>}}
                 "model": "llama-3.1-8b-instant",
                 "max_tokens": 40,
                 "temperature": 0.1,
+                "response_format": {"type": "json_object"},
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=8,
