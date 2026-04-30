@@ -67,17 +67,32 @@ def _score_results(results: list[dict]) -> tuple[int, list[str]]:
     return min(60, risk_boost), headlines[:3]
 
 
-def get_port_disruption_signals(countries: list[str]) -> dict[str, dict]:
+def get_port_disruption_signals(
+    countries: list[str], 
+    company_name: str | None = None, 
+    routes: list[str] | None = None
+) -> dict[str, dict]:
     """
-    Parallel Tavily searches for port/shipping/logistics disruptions.
+    Parallel Tavily searches for targeted company and logistics disruptions.
     Returns { country: { riskBoost: int, headlines: list[str] } }
     """
     def _search_country(country: str):
-        results = _search(
-            f"{country} port shipping logistics disruption delay strike 2025",
-            max_results=4,
-        )
-        boost, headlines = _score_results(results)
+        # Sharpen search if company name is provided
+        if company_name:
+            query = f"{company_name} supply chain factory disruption strike delay {country} 2025"
+        else:
+            query = f"{country} port shipping logistics disruption delay strike 2025"
+            
+        results = _search(query, max_results=4)
+        
+        # If we have routes, do a parallel route check and blend headlines
+        route_results = []
+        if routes:
+            # Pick a relevant route or just use the first few to avoid too many API calls
+            for r in routes[:2]:
+                route_results.extend(_search(f"{r} shipping port congestion delay 2025", max_results=2))
+
+        boost, headlines = _score_results(results + route_results)
         return country, {"riskBoost": boost, "headlines": headlines}
 
     output = {}
